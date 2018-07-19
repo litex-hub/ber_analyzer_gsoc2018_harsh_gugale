@@ -24,7 +24,7 @@ class Top_gtp(Module, AutoCSR):
 
         gtp = GTP(qpll, tx_pads, rx_pads, refclk_freq,
             clock_aligner=True, internal_loopback=True)
-		
+
         self.submodules += gtp
 
         inp1 = BusSynchronizer(20,"sys","tx")
@@ -38,6 +38,8 @@ class Top_gtp(Module, AutoCSR):
 
         inp4 =BusSynchronizer(20,"rx","sys")
         self.comb += inp4.i.eq(gtp.rx_global_error), self.rx_global_error.status.eq(inp4.o)
+
+        self.submodules += inp1,inp2,inp3,inp4
 
         self.specials += [
             MultiReg(self.seldata.storage, gtp.tx_seldata, "tx"),
@@ -53,6 +55,19 @@ class Top_gtp(Module, AutoCSR):
             MultiReg(self.enable_err_count.storage,gtp.enable_err_count,"rx"),
             MultiReg(gtp.rx_ready,self.rx_ready_sys.status,"sys"),
         ]
+
+        sys_clk = Signal()
+        self.comb += sys_clk.eq(ClockSignal("sys"))
+        sys_clk.attr.add("keep")
+        gtp.cd_tx.clk.attr.add("keep")
+        gtp.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
+        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.tx_clk_freq)
+        platform.add_false_path_constraints(
+            sys_clk,
+            gtp.cd_tx.clk,
+            gtp.cd_rx.clk)
+
 
 
 
