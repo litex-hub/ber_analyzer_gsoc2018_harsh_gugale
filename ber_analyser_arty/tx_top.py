@@ -5,16 +5,16 @@ from ber_analyser_arty.prbs import *
 
 
 class _TX(Module):
-	def __init__ (self,data_width=20):
+	def __init__ (self,data_width=20,reverse=False):
 		self.tx_prbs_config = tx_prbs_config = Signal(2)
 		self.input = Signal(data_width)
 		self.txdata = txdata = Signal(data_width)
 		self.seldata = Signal()
 		self.en8b10b = Signal()
-		self.mask = Signal(data_width,reset=0)
+		self.mask = Signal(data_width)
 		self.k = Signal(2)
 
-		prbs_tx = PRBSTX(data_width)
+		prbs_tx = PRBSTX(data_width,reverse)
 		enc = Encoder(2)
 		self.submodules += prbs_tx,enc
 

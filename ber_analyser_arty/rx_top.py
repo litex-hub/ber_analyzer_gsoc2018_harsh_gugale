@@ -4,7 +4,7 @@ from litex.soc.cores.code_8b10b import *
 from ber_analyser_arty.prbs import *
 
 class _RX(Module):
-	def __init__(self, data_width = 20):
+	def __init__(self, data_width = 20,reverse=False):
 		self.rx_prbs_config = rx_prbs_config = Signal(2)
 		self.en8b10b = Signal()
 		self.mask = Signal(data_width,reset=0)
@@ -21,7 +21,7 @@ class _RX(Module):
 		#seldata 0 - PRBS output
 		#seldata 1 - input to module
 
-		prbs_rx = PRBSRX(data_width)
+		prbs_rx = PRBSRX(data_width,reverse)
 		dec0 = Decoder()
 		dec1 = Decoder()
 		self.submodules += prbs_rx, dec0, dec1
