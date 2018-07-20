@@ -110,10 +110,11 @@ class GTP(Module):
         self.rx_seldata = Signal()
         self.tx_en8b10b = Signal()
         self.rx_en8b10b = Signal()
-        self.enable_err_count = Signal(2)
+        self.enable_err_count = Signal(2,reset=1)
+        self.total_bit_count = Signal(32)
         self.tx_prbs_config = Signal(2)
         self.rx_prbs_config = Signal(2)
-        self.rx_global_error = Signal(32)
+        self.global_error = Signal(32)
         self.tx_input = Signal(20)
         self.tx_mask = Signal(20)
         self.rx_mask = Signal(20)
@@ -122,8 +123,8 @@ class GTP(Module):
 
         # # # #
 
-        tx = ClockDomainsRenamer("tx")(_TX(20))
-        rx = ClockDomainsRenamer("rx")(_RX(20))
+        tx = ClockDomainsRenamer("tx")(_TX(20,True))
+        rx = ClockDomainsRenamer("rx")(_RX(20,True))
         self.submodules += tx,rx
 
         # transceiver direct clock outputs
@@ -149,7 +150,8 @@ class GTP(Module):
         rx.en8b10b.eq(self.rx_en8b10b),
         rx.enable_err_count.eq(self.enable_err_count),
         rx.rx_prbs_config.eq(self.rx_prbs_config),
-        self.rx_global_error.eq(rx.global_error),
+        self.global_error.eq(rx.global_error),
+        self.total_bit_count.eq(rx.total_bit_count),
         rx.mask.eq(self.rx_mask)
         ]
 
@@ -189,7 +191,7 @@ class GTP(Module):
             Instance("GTPE2_CHANNEL",
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
-                p_SIM_RESET_SPEEDUP="TRUE",
+                p_SIM_RESET_SPEEDUP="FALSE",
 
                 # DRP
                 i_DRPADDR=rx_init.drpaddr,
@@ -201,24 +203,24 @@ class GTP(Module):
                 i_DRPWE=rx_init.drpwe,
 
                 # PMA Attributes
-                p_PMA_RSV=0x333,
-                p_PMA_RSV2=0x2040,
-                p_PMA_RSV3=0,
-                p_PMA_RSV4=0,
-                p_RX_BIAS_CFG=0b0000111100110011,
-                p_RX_CM_SEL=0b01,
-                p_RX_CM_TRIM=0b1010,
-                p_RX_OS_CFG=0b10000000,
-                p_RXLPM_IPCM_CFG=1,
+                # p_PMA_RSV=0x333,
+                # p_PMA_RSV2=0x2040,
+                # p_PMA_RSV3=0,
+                # p_PMA_RSV4=0,
+                # p_RX_BIAS_CFG=0b0000111100110011,
+                # p_RX_CM_SEL=0b01,
+                # p_RX_CM_TRIM=0b1010,
+                # p_RX_OS_CFG=0b10000000,
+                # p_RXLPM_IPCM_CFG=1,
                 i_RXOOBRESET=0,
                 i_RXELECIDLEMODE=0b11,
-                i_RXOSINTCFG=0b0010,
-                i_RXOSINTEN=1,
+                # i_RXOSINTCFG=0b0010,
+                # i_RXOSINTEN=1,
 
                 # Power-Down Attributes
-                p_PD_TRANS_TIME_FROM_P2=0x3c,
-                p_PD_TRANS_TIME_NONE_P2=0x3c,
-                p_PD_TRANS_TIME_TO_P2=0x64,
+                # p_PD_TRANS_TIME_FROM_P2=0x3c,
+                # p_PD_TRANS_TIME_NONE_P2=0x3c,
+                # p_PD_TRANS_TIME_TO_P2=0x64,
 
                 # QPLL
                 i_PLL0CLK=qpll.clk,
