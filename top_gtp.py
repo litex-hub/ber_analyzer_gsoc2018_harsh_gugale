@@ -9,11 +9,12 @@ class Top_gtp(Module, AutoCSR):
         self.enable_err_count = CSRStorage(2)
         self.tx_prbs_config = CSRStorage(2)
         self.rx_prbs_config = CSRStorage(2)
-        self.rx_global_error = CSRStatus(32)
+        self.global_error = CSRStatus(32)
+        self.total_bit_count = CSRStatus(32)
         self.input = CSRStorage(20)
         self.mask = CSRStorage(20)
         self.k = CSRStorage(2)
-        self.rx_ready_sys = CSRStatus()
+        self.rx_aligndone = CSRStatus()
 
         qpll = GTPQuadPLL(refclk, 100e6, 2e9)
         print(qpll)
@@ -36,10 +37,13 @@ class Top_gtp(Module, AutoCSR):
         inp3 = BusSynchronizer(20,"sys","rx")
         self.comb += inp3.i.eq(self.mask.storage), gtp.rx_mask.eq(inp3.o)
 
-        inp4 =BusSynchronizer(20,"rx","sys")
-        self.comb += inp4.i.eq(gtp.rx_global_error), self.rx_global_error.status.eq(inp4.o)
+        inp4 =BusSynchronizer(32,"rx","sys")
+        self.comb += inp4.i.eq(gtp.global_error), self.global_error.status.eq(inp4.o)
 
-        self.submodules += inp1,inp2,inp3,inp4
+        inp5 =BusSynchronizer(32,"rx","sys")
+        self.comb += inp5.i.eq(gtp.total_bit_count), self.total_bit_count.status.eq(inp5.o)
+
+        self.submodules += inp1,inp2,inp3,inp4,inp5
 
         self.specials += [
             MultiReg(self.seldata.storage, gtp.tx_seldata, "tx"),
@@ -53,7 +57,7 @@ class Top_gtp(Module, AutoCSR):
             MultiReg(self.en8b10b.storage,gtp.rx_en8b10b,"rx"),
             MultiReg(self.rx_prbs_config.storage, gtp.rx_prbs_config, "rx"),
             MultiReg(self.enable_err_count.storage,gtp.enable_err_count,"rx"),
-            MultiReg(gtp.rx_ready,self.rx_ready_sys.status,"sys"),
+            MultiReg(gtp.rx_aligndone,self.rx_aligndone.status,"sys"),
         ]
 
         sys_clk = Signal()
