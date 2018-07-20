@@ -15,7 +15,7 @@ class _TX(Module):
 		self.k = Signal(2)
 
 		prbs_tx = PRBSTX(data_width,reverse)
-		enc = Encoder(2)
+		enc = Encoder(2,True)
 		self.submodules += prbs_tx,enc
 
 		#seldata 0 - PRBS output
