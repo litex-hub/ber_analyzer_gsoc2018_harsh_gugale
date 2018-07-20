@@ -22,8 +22,8 @@ class _RX(Module):
 		#seldata 1 - input to module
 
 		prbs_rx = PRBSRX(data_width,reverse)
-		dec0 = Decoder()
-		dec1 = Decoder()
+		dec0 = Decoder(True)
+		dec1 = Decoder(True)
 		self.submodules += prbs_rx, dec0, dec1
 
 		self.comb += [
