@@ -38,14 +38,14 @@ class PRBSControl:
 			Rxval = None
 
 		if Txval is not None: 
-			self.tx_config.write(Txval)
+			self.tx_prbs_config.write(Txval)
 			time.sleep(0.001)
 		
 		if Rxval is not None:
-			self.rx_config.write(Rxval)
+			self.rx_prbs_config.write(Rxval)
 			time.sleep(0.001)
 
-	def setErrMask(self,error_fraction,data_width = 40):
+	def setErrMask(self,error_fraction,data_width = 20):
 		mask = 0
 		maskval = 0
 		if error_fraction not in [0,0.25,0.5,0.75,1]:
@@ -87,16 +87,26 @@ class PRBSControl:
 		self.enable_err_count.write(0b01)
 		time.sleep(0.001)
 
-	def calcBER(self, data_width = 40):
+	def phaseAlign(self):
+		self.seldata.write(1)
+		self.en8b10b.write(1)
+		self.input.write(0x001BC)
+		self.k.write(0b01)
+		for i in range(10000):
+			if(int(self.rx_ready_sys.read()) == 1):
+				print("RX Ready. Alignment Done")
+				return
+			time.sleep(0.001)
+
+		print("Timeout")
+
+	def calcBER(self, data_width = 20):
 
 		self.enable_err_count.write(0b11)
 		self.err2 = err2 = int(self.global_error.read())
 		self.c2 = c2 = int(self.total_bit_count.read())
 
-		if(int(self.en8b10b.read()) == 1):
-			ber = ((self.err2-self.err1)/((data_width/10)*8*(self.c2-self.c1)))
-		else:
-			ber = ((self.err2-self.err1)/(data_width*(self.c2-self.c1)))
+		ber = ((self.err2-self.err1)/(data_width*(self.c2-self.c1)))
 
 		self.enable_err_count.write(0b00)
 		time.sleep(0.001)
@@ -111,26 +121,24 @@ class PRBSControl:
 
 #Use CalcBER below if using only abstraction class without GUI.
 
-	# def calcBER(self,timems, data_width = 40):
-	# 	self.enable_err_count.write(0b00)
-	# 	time.sleep(0.001)
-	# 	self.enable_err_count.write(0b11)
+	def calcBERabs(self,timems, data_width = 20):
+		self.seldata.write(0)
+		self.enable_err_count.write(0b00)
+		time.sleep(0.001)
+		self.enable_err_count.write(0b11)
 
-	# 	c1 = int(self.total_bit_count.read())
-	# 	err1 = int(self.global_error.read())
+		c1 = int(self.total_bit_count.read())
+		err1 = int(self.global_error.read())
 
-	# 	self.enable_err_count.write(0b01)
-	# 	time.sleep(timems*0.001)
-	# 	self.enable_err_count.write(0b11)
+		self.enable_err_count.write(0b01)
+		time.sleep(timems*0.001)
+		self.enable_err_count.write(0b11)
 
-	# 	err2 = int(self.global_error.read())
-	# 	c2 = int(self.total_bit_count.read())
+		err2 = int(self.global_error.read())
+		c2 = int(self.total_bit_count.read())
 
-	# 	if(int(self.en8b10b.read()) == 1):
-	# 		ber = ((err2-err1)/((data_width/10)*8*(c2-c1)))
-	# 	else:
-	# 		ber = ((err2-err1)/(data_width*(c2-c1)))
-	# 	return ber
+		ber = ((err2-err1)/(data_width*(c2-c1)))
+		return ber
 
 
 
