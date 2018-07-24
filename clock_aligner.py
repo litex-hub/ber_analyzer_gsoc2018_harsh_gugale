@@ -26,8 +26,8 @@ class BruteforceClockAligner(Module):
     def __init__(self, comma, tx_clk_freq, check_period=6e-3):
         self.rxdata = Signal(20)
         self.restart = Signal()
-
-        self.ready = Signal()
+        self.rx_phaseAlign_ack = Signal()
+        self.rx_restart_phaseAlign = Signal()
 
         check_max_val = ceil(check_period*tx_clk_freq)
         check_counter = Signal(max=check_max_val+1)
@@ -104,10 +104,8 @@ class BruteforceClockAligner(Module):
         )
         fsm.act("READY",
             reset_check_counter.eq(1),
-            self.ready.eq(1),
-            # If(error_seen,
-            #     checks_reset.i.eq(1),
-            #     self.restart.eq(1),
-            #     NextState("WAIT_COMMA")
-            # )
+            self.rx_phaseAlign_ack.eq(1),
+            If(self.rx_restart_phaseAlign,
+                NextState("WAIT_COMMA")
+            )
         )
