@@ -10,7 +10,7 @@ class Ui(Ui_MainWindow):
         self.wb = RemoteClient()
         self.wb.open()
 
-        self.prcon = PRBSControl(self.wb.regs,"top")
+        self.prcon = PRBSControl(self.wb.regs,"top_gtp")
         self.setupUi(MainWindow)
         self.attachHandlers()
         self.prcon.BERinit()
