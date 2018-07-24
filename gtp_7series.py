@@ -110,7 +110,7 @@ class GTP(Module):
         self.rx_seldata = Signal()
         self.tx_en8b10b = Signal()
         self.rx_en8b10b = Signal()
-        self.enable_err_count = Signal(2,reset=1)
+        self.enable_err_count = Signal(2)
         self.total_bit_count = Signal(32)
         self.tx_prbs_config = Signal(2)
         self.rx_prbs_config = Signal(2)
@@ -120,6 +120,15 @@ class GTP(Module):
         self.rx_mask = Signal(20)
         self.k = Signal(2)
         self.rx_ready = Signal()
+        self.plllock = Signal()
+
+        self.rx_reset_host = Signal()
+        self.tx_reset_host = Signal()
+        self.rx_reset_ack = Signal()
+        self.tx_reset_ack = Signal()
+        self.rx_restart_phaseAlign = Signal()
+        self.rx_phaseAlign_ack = Signal()
+        self.tx_clk_freq = qpll.config["linerate"]/20
 
         # # # #
 
@@ -127,12 +136,19 @@ class GTP(Module):
         rx = ClockDomainsRenamer("rx")(_RX(20,True))
         self.submodules += tx,rx
 
+        # TX generates RTIO clock, init must be in system domain
+        tx_init = GTPTXInit(sys_clk_freq)
+        # RX receives restart commands from RTIO domain
+        rx_init = ClockDomainsRenamer("tx")(GTPRXInit(self.tx_clk_freq))
+        self.submodules += tx_init, rx_init
+        # debug
+        self.tx_init = tx_init
+        self.rx_init = rx_init
+
         # transceiver direct clock outputs
         # useful to specify clock constraints in a way palatable to Vivado
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
-
-        self.tx_clk_freq = qpll.config["linerate"]/20
 
         # control/status cdc
 
@@ -155,18 +171,14 @@ class GTP(Module):
         rx.mask.eq(self.rx_mask)
         ]
 
-        # # #
-
-        # TX generates RTIO clock, init must be in system domain
-        tx_init = GTPTXInit(sys_clk_freq)
-        # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(self.tx_clk_freq))
-        self.submodules += tx_init, rx_init
-        # debug
-        self.tx_init = tx_init
-        self.rx_init = rx_init
         self.comb += [
+        self.tx_reset_ack.eq(tx_init.done),
+        self.rx_reset_ack.eq(rx_init.done),
+        tx_init.restart.eq(self.tx_reset_host)
+        ]
+
+        self.comb += [
+            self.plllock.eq(qpll.lock),
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
             qpll.reset.eq(tx_init.pllreset)
@@ -357,8 +369,7 @@ class GTP(Module):
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rx.rxdata),
-                rx_init.restart.eq(clock_aligner.restart),
-                self.rx_ready.eq(clock_aligner.ready)
+                rx_init.restart.eq(clock_aligner.restart | self.rx_reset_host),
+                clock_aligner.rx_restart_phaseAlign.eq(self.rx_restart_phaseAlign),
+                self.rx_phaseAlign_ack.eq(clock_aligner.rx_phaseAlign_ack)
             ]
-        else:
-            self.comb += self.rx_ready.eq(rx_init.done)
