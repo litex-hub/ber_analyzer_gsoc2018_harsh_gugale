@@ -87,18 +87,50 @@ class PRBSControl:
 		self.enable_err_count.write(0b01)
 		time.sleep(0.001)
 
+	def PLLlockStatus(self):
+		if(int(self.plllock.read()) == 1):
+			Print("PLL Lock")
+		else:
+			raise ValueError("PLL lock failed. Please Reset")
+
 	def phaseAlign(self):
 		self.seldata.write(1)
 		self.en8b10b.write(1)
 		self.input.write(0x001BC)
 		self.k.write(0b01)
+		self.rx_restart_phaseAlign.write(1)
+		self.rx_restart_phaseAlign.write(0)
 		for i in range(10000):
-			if(int(self.rx_ready_sys.read()) == 1):
+			time.sleep(0.001)
+			if(int(self.rx_phaseAlign_ack.read()) == 1):
 				print("RX Ready. Alignment Done")
 				return
-			time.sleep(0.001)
 
-		print("Timeout")
+		raise TimeoutError
+
+	def resetTx(self):
+		self.tx_reset_host.write(1)
+		self.tx_reset_host.write(0)
+
+		for i in range(10000):
+			time.sleep(0.001)
+			if(int(self.tx_reset_ack.read()) == 1):
+				print("TX Reset Complete")
+				return
+			
+		raise TimeoutError
+
+	def resetRx(self):
+		self.rx_reset_host.write(1)
+		self.rx_reset_host.write(0)
+
+		for i in range(10000):
+			time.sleep(0.001)
+			if(int(self.rx_reset_ack.read()) == 1):
+				print("RX Reset Complete")
+				return
+
+		raise TimeoutError
 
 	def calcBER(self, data_width = 20):
 
@@ -136,6 +168,8 @@ class PRBSControl:
 
 		err2 = int(self.global_error.read())
 		c2 = int(self.total_bit_count.read())
+
+		print(c1,err1,c2,err2)
 
 		ber = ((err2-err1)/(data_width*(c2-c1)))
 		return ber
