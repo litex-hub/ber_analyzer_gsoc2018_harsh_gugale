@@ -89,7 +89,7 @@ class PRBSControl:
 
 	def PLLlockStatus(self):
 		if(int(self.plllock.read()) == 1):
-			Print("PLL Lock")
+			print("PLL Lock")
 		else:
 			raise ValueError("PLL lock failed. Please Reset")
 
