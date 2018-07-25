@@ -103,7 +103,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 
 class GTP(Module):
-    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
+    def __init__(self, qpll,drp_host,tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
         self.tx_seldata = Signal()
@@ -129,6 +129,15 @@ class GTP(Module):
         self.rx_restart_phaseAlign = Signal()
         self.rx_phaseAlign_ack = Signal()
         self.tx_clk_freq = qpll.config["linerate"]/20
+
+        # DRP signals
+
+        self.drpaddr = Signal(9)
+        self.drpen = Signal()
+        self.drpdi = Signal(16)
+        self.drprdy = Signal()
+        self.drpdo = Signal(16)
+        self.drpwe = Signal()
 
         # # # #
 
@@ -184,6 +193,26 @@ class GTP(Module):
             qpll.reset.eq(tx_init.pllreset)
         ]
 
+        # DRP Mux selected by rx_init
+
+        self.comb += [
+        If(rx_init.drp_mux_sel == 1,
+            self.drpaddr.eq(rx_init.drpaddr),
+            self.drpdi.eq(rx_init.drpdi),
+            self.drpdo.eq(rx_init.drpdo),
+            self.drpen.eq(rx_init.drpen),
+            self.drpwe.eq(rx_init.drpwe),
+            self.drprdy.eq(rx_init.drprdy)
+        ).Else(
+            self.drpaddr.eq(drp_host.drpaddr),
+            self.drpdi.eq(drp_host.drpdi),
+            self.drpdo.eq(drp_host.drpdo),
+            self.drpen.eq(drp_host.drpen),
+            self.drpwe.eq(drp_host.drpwe),
+            self.drprdy.eq(drp_host.drprdy)
+
+        )]
+
         assert qpll.config["linerate"] < 6.6e9
         # rxcdr_cfgs = {
         #      1 : 0x0001107FE206021041010,
@@ -206,13 +235,13 @@ class GTP(Module):
                 p_SIM_RESET_SPEEDUP="FALSE",
 
                 # DRP
-                i_DRPADDR=rx_init.drpaddr,
+                i_DRPADDR=self.drpaddr,
                 i_DRPCLK=ClockSignal("tx"),
-                i_DRPDI=rx_init.drpdi,
-                o_DRPDO=rx_init.drpdo,
-                i_DRPEN=rx_init.drpen,
-                o_DRPRDY=rx_init.drprdy,
-                i_DRPWE=rx_init.drpwe,
+                i_DRPDI=self.drpdi,
+                o_DRPDO=self.drpdo,
+                i_DRPEN=self.drpen,
+                o_DRPRDY=self.drprdy,
+                i_DRPWE=self.drpwe,
 
                 # PMA Attributes
                 # p_PMA_RSV=0x333,

@@ -1,6 +1,7 @@
 from migen import *
 from gtp_7series import *
 from litex.soc.interconnect.csr import *
+from drp import *
 
 class Top_gtp(Module, AutoCSR):
     def __init__ (self, refclk, refclk_freq, linerate, platform):
@@ -23,17 +24,29 @@ class Top_gtp(Module, AutoCSR):
         self.rx_restart_phaseAlign = CSRStorage()
         self.rx_phaseAlign_ack = CSRStatus()
 
+        # DRP Host Signals
+
+        self.drp_oprenable = CSRStorage()
+        self.drp_addr = CSRStorage()
+        self.drp_di = CSRStorage()
+        self.drp_do = CSRStatus()
+        self.drp_wren = CSRStorage()
+        self.drp_ack = CSRStatus()
+
+        # # #
+
         qpll = GTPQuadPLL(refclk, 100e6, 2e9)
         print(qpll)
-        self.submodules += qpll
 
         tx_pads = platform.request("gtp_tx")
         rx_pads = platform.request("gtp_rx")
 
-        gtp = GTP(qpll, tx_pads, rx_pads, refclk_freq,
+        drp_host = (ClockDomainsRenamer("tx"))(drp())
+
+        gtp = GTP(qpll,drp_host,tx_pads, rx_pads, refclk_freq,
             clock_aligner=True, internal_loopback=True)
 
-        self.submodules += gtp
+        self.submodules += gtp,qpll,drp_host
 
         inp1 = BusSynchronizer(20,"sys","tx")
         self.comb += inp1.i.eq(self.input.storage), gtp.tx_input.eq(inp1.o)
@@ -50,7 +63,16 @@ class Top_gtp(Module, AutoCSR):
         inp5 = BusSynchronizer(32,"rx","sys")
         self.comb += inp5.i.eq(gtp.total_bit_count), self.total_bit_count.status.eq(inp5.o)
 
-        self.submodules += inp1,inp2,inp3,inp4,inp5
+        inp6 = BusSynchronizer(16,"sys","tx")
+        self.comb += inp6.i.eq(self.drp_di.storage), drp_host.drpdi.eq(inp6.o)
+
+        inp7 = BusSynchronizer(16,"tx","sys")
+        self.comb += inp7.i.eq(self.drp_do.status), drp_host.drpdo.eq(inp7.o)
+
+        inp8 = BusSynchronizer(9,"sys","tx")
+        self.comb += inp8.i.eq(self.drp_addr.storage), drp_host.drpaddr.eq(inp8.o)
+
+        self.submodules += inp1,inp2,inp3,inp4,inp5,inp6,inp7,inp8
 
         pul1 = PulseSynchronizer("sys","tx")
         pul2 = PulseSynchronizer("sys","tx")
@@ -73,7 +95,10 @@ class Top_gtp(Module, AutoCSR):
             MultiReg(self.k.storage, gtp.k, "tx"),
             MultiReg(self.tx_prbs_config.storage, gtp.tx_prbs_config, "tx"),
             MultiReg(gtp.tx_reset_ack,self.tx_reset_ack.status,"sys"),
-            MultiReg(gtp.plllock,self.plllock.status,"sys")
+            MultiReg(gtp.plllock,self.plllock.status,"sys"),
+            MultiReg(self.drp_oprenable.storage,drp_host.oprenable,"tx"),
+            MultiReg(self.drp_wren.storage,drp_host.wren,"tx"),
+            MultiReg(drp_host.ack,self.drp_ack.status,"sys")
         ]
 
         self.specials += [
