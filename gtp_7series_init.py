@@ -163,6 +163,7 @@ class GTPRXInit(Module):
         self.drprdy = Signal()
         self.drpdo = Signal(16)
         self.drpwe = Signal()
+        self.drp_mux_sel = Signal()
 
         # # #
 
@@ -230,6 +231,7 @@ class GTPRXInit(Module):
         self.submodules += cdr_stable_timer
 
         startup_fsm.act("GTP_PD",
+            self.drp_mux_sel.eq(1),
             gtrxpd.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
@@ -239,22 +241,21 @@ class GTPRXInit(Module):
         )
 
         startup_fsm.act("GTP_PLL_WAIT",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             If(plllock,
                 NextState("DRP_READ_ISSUE")
             )
         )
 
-        # startup_fsm.act("GTP_RESET",
-        #     gtrxreset.eq(1),
-        #     NextState("DRP_READ_ISSUE")
-        # )
         startup_fsm.act("DRP_READ_ISSUE",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             self.drpen.eq(1),
             NextState("DRP_READ_WAIT")
         )
         startup_fsm.act("DRP_READ_WAIT",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             If(self.drprdy,
                 NextValue(drpvalue, self.drpdo),
@@ -263,6 +264,7 @@ class GTPRXInit(Module):
         )
 
         startup_fsm.act("DRPRDY_DEASSERT",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             If(~self.drprdy,
                 NextState("DRP_MOD_ISSUE")
@@ -270,6 +272,7 @@ class GTPRXInit(Module):
         )
 
         startup_fsm.act("DRP_MOD_ISSUE",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             drpmask.eq(1),
             self.drpen.eq(1),
@@ -277,6 +280,7 @@ class GTPRXInit(Module):
             NextState("DRP_MOD_WAIT")
         )
         startup_fsm.act("DRP_MOD_WAIT",
+            self.drp_mux_sel.eq(1),
             gtrxreset.eq(1),
             If(self.drprdy,
                 gtrxreset.eq(0),
@@ -284,18 +288,21 @@ class GTPRXInit(Module):
             )
         )
         startup_fsm.act("WAIT_PMARST_FALL",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             If(rxpmaresetdone_r & ~rxpmaresetdone,
                 NextState("DRP_RESTORE_ISSUE")
             )
         )
         startup_fsm.act("DRP_RESTORE_ISSUE",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             self.drpen.eq(1),
             self.drpwe.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
         startup_fsm.act("DRP_RESTORE_WAIT",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             If(self.drprdy,
                 NextState("WAIT_GTP_RESET_DONE")
@@ -305,6 +312,7 @@ class GTPRXInit(Module):
         # (from UG482, GTP is reset on falling edge
         # of gtrxreset)
         startup_fsm.act("WAIT_GTP_RESET_DONE",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             cdr_stable_timer.wait.eq(1),
             If(rxresetdone & cdr_stable_timer.done,
@@ -313,6 +321,7 @@ class GTPRXInit(Module):
         )
         # Start delay alignment
         startup_fsm.act("ALIGN",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             rxdlysreset.eq(1),
             If(rxdlysresetdone,
@@ -321,12 +330,14 @@ class GTPRXInit(Module):
         )
         # Wait for delay alignment
         startup_fsm.act("WAIT_ALIGN_DONE",
+            self.drp_mux_sel.eq(1),
             rxuserrdy.eq(1),
             If(rxsyncdone,
                 NextState("READY")
             )
         )
         startup_fsm.act("READY",
+            self.drp_mux_sel.eq(0),
             rxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("GTP_PD")
