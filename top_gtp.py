@@ -15,7 +15,16 @@ class Top_gtp(Module, AutoCSR):
         self.input = CSRStorage(20)
         self.mask = CSRStorage(20)
         self.k = CSRStorage(2)
+
         self.plllock = CSRStatus()
+        self.loopback = CSRStorage(3,reset=0b010)
+        self.tx_polarity = CSRStorage()
+        self.rx_polarity = CSRStorage()
+        self.diffctrl = CSRStorage(4,reset=0b1000)
+        self.txprecursor = CSRStorage(5)
+        self.txpostcursor = CSRStorage(5)
+        self.linkstatus = CSRStatus()
+        self.checklink = CSRStorage()
 
         self.tx_reset_host = CSRStorage()
         self.rx_reset_host = CSRStorage()
@@ -27,9 +36,9 @@ class Top_gtp(Module, AutoCSR):
         # DRP Host Signals
 
         self.drp_oprenable = CSRStorage()
-        self.drp_addr = CSRStorage()
-        self.drp_di = CSRStorage()
-        self.drp_do = CSRStatus()
+        self.drp_addr = CSRStorage(9)
+        self.drp_di = CSRStorage(16)
+        self.drp_value = CSRStatus(16)
         self.drp_wren = CSRStorage()
         self.drp_ack = CSRStatus()
 
@@ -43,8 +52,7 @@ class Top_gtp(Module, AutoCSR):
 
         drp_host = (ClockDomainsRenamer("tx"))(drp())
 
-        gtp = GTP(qpll,drp_host,tx_pads, rx_pads, refclk_freq,
-            clock_aligner=True, internal_loopback=True)
+        gtp = GTP(qpll,drp_host,tx_pads, rx_pads, refclk_freq, clock_aligner=True)
 
         self.submodules += gtp,qpll,drp_host
 
@@ -67,12 +75,24 @@ class Top_gtp(Module, AutoCSR):
         self.comb += inp6.i.eq(self.drp_di.storage), drp_host.drpdi.eq(inp6.o)
 
         inp7 = BusSynchronizer(16,"tx","sys")
-        self.comb += inp7.i.eq(self.drp_do.status), drp_host.drpdo.eq(inp7.o)
+        self.comb += inp7.i.eq(drp_host.drpvalue), self.drp_value.status.eq(inp7.o)
 
         inp8 = BusSynchronizer(9,"sys","tx")
         self.comb += inp8.i.eq(self.drp_addr.storage), drp_host.drpaddr.eq(inp8.o)
 
-        self.submodules += inp1,inp2,inp3,inp4,inp5,inp6,inp7,inp8
+        inp9 = BusSynchronizer(3,"sys","tx")
+        self.comb += inp9.i.eq(self.loopback.storage), gtp.loopback.eq(inp9.o)
+
+        inp10 = BusSynchronizer(4,"sys","tx")
+        self.comb += inp10.i.eq(self.diffctrl.storage), gtp.diffctrl.eq(inp10.o)
+
+        inp11 = BusSynchronizer(5,"sys","tx")
+        self.comb += inp11.i.eq(self.txpostcursor.storage), gtp.txpostcursor.eq(inp11.o)
+
+        inp12 = BusSynchronizer(5,"sys","tx")
+        self.comb += inp12.i.eq(self.txprecursor.storage), gtp.txprecursor.eq(inp12.o)
+
+        self.submodules += inp1,inp2,inp3,inp4,inp5,inp6,inp7,inp8,inp9,inp10,inp11,inp12
 
         pul1 = PulseSynchronizer("sys","tx")
         pul2 = PulseSynchronizer("sys","tx")
@@ -98,16 +118,20 @@ class Top_gtp(Module, AutoCSR):
             MultiReg(gtp.plllock,self.plllock.status,"sys"),
             MultiReg(self.drp_oprenable.storage,drp_host.oprenable,"tx"),
             MultiReg(self.drp_wren.storage,drp_host.wren,"tx"),
-            MultiReg(drp_host.ack,self.drp_ack.status,"sys")
+            MultiReg(drp_host.ack,self.drp_ack.status,"sys"),
+            MultiReg(self.tx_polarity.storage,gtp.tx_polarity,"tx")
         ]
 
         self.specials += [
-        	MultiReg(self.seldata.storage,gtp.rx_seldata,"rx"),
+            MultiReg(self.seldata.storage,gtp.rx_seldata,"rx"),
             MultiReg(self.en8b10b.storage,gtp.rx_en8b10b,"rx"),
             MultiReg(self.rx_prbs_config.storage, gtp.rx_prbs_config, "rx"),
             MultiReg(self.enable_err_count.storage,gtp.enable_err_count,"rx"),
             MultiReg(gtp.rx_phaseAlign_ack,self.rx_phaseAlign_ack.status,"sys"),
-            MultiReg(gtp.rx_reset_ack,self.rx_reset_ack.status,"sys")
+            MultiReg(gtp.rx_reset_ack,self.rx_reset_ack.status,"sys"),
+            MultiReg(self.rx_polarity.storage,gtp.rx_polarity,"rx"),
+            MultiReg(gtp.linkstatus,self.linkstatus.status,"sys"),
+            MultiReg(self.checklink.storage,gtp.checklink,"rx")
         ]
 
         sys_clk = Signal()
