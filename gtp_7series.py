@@ -104,8 +104,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTP(Module):
     def __init__(self, qpll,drp_host,tx_pads, rx_pads, sys_clk_freq,
-                 clock_aligner=True, internal_loopback=False,
-                 tx_polarity=0, rx_polarity=0):
+                 clock_aligner=True):
         self.tx_seldata = Signal()
         self.rx_seldata = Signal()
         self.tx_en8b10b = Signal()
@@ -120,7 +119,16 @@ class GTP(Module):
         self.rx_mask = Signal(20)
         self.k = Signal(2)
         self.rx_ready = Signal()
+
         self.plllock = Signal()
+        self.loopback = Signal(3)
+        self.tx_polarity = Signal()
+        self.rx_polarity = Signal()
+        self.diffctrl = Signal(4)
+        self.txprecursor = Signal(5)
+        self.txpostcursor = Signal(5)
+        self.checklink = Signal()
+        self.linkstatus = Signal()
 
         self.rx_reset_host = Signal()
         self.tx_reset_host = Signal()
@@ -177,7 +185,9 @@ class GTP(Module):
         rx.rx_prbs_config.eq(self.rx_prbs_config),
         self.global_error.eq(rx.global_error),
         self.total_bit_count.eq(rx.total_bit_count),
-        rx.mask.eq(self.rx_mask)
+        rx.mask.eq(self.rx_mask),
+        rx.checklink.eq(self.checklink),
+        self.linkstatus.eq(rx.linkstatus)
         ]
 
         self.comb += [
@@ -199,17 +209,17 @@ class GTP(Module):
         If(rx_init.drp_mux_sel == 1,
             self.drpaddr.eq(rx_init.drpaddr),
             self.drpdi.eq(rx_init.drpdi),
-            self.drpdo.eq(rx_init.drpdo),
+            rx_init.drpdo.eq(self.drpdo),
             self.drpen.eq(rx_init.drpen),
             self.drpwe.eq(rx_init.drpwe),
-            self.drprdy.eq(rx_init.drprdy)
+            rx_init.drprdy.eq(self.drprdy)
         ).Else(
             self.drpaddr.eq(drp_host.drpaddr),
             self.drpdi.eq(drp_host.drpdi),
-            self.drpdo.eq(drp_host.drpdo),
+            drp_host.drpdo.eq(self.drpdo),
             self.drpen.eq(drp_host.drpen),
             self.drpwe.eq(drp_host.drpwe),
-            self.drprdy.eq(drp_host.drprdy)
+            drp_host.drprdy.eq(self.drprdy)
 
         )]
 
@@ -312,10 +322,14 @@ class GTP(Module):
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
-                i_TXDIFFCTRL=0b1000,
+                i_TXDIFFCTRL=self.diffctrl,
+                i_TXELECIDLE=0,
+                i_TXINHIBIT=0,
+                i_TXPOSTCURSOR=self.txpostcursor,
+                i_TXPRECURSOR=self.txprecursor,
 
                 # Internal Loopback
-                i_LOOPBACK=0b010 if internal_loopback else 0b000,
+                i_LOOPBACK=self.loopback,
 
                 # RX Startup/Reset
                 i_GTRXRESET=rx_init.gtrxreset,
@@ -332,7 +346,7 @@ class GTP(Module):
                 i_EYESCANRESET=0,
                 i_RXPCSRESET=0,
                 i_RXBUFRESET=0,
-                # i_RXSYNCIN=0,
+                i_RXSYNCIN=0,
                 i_RXSYNCMODE=1,
                 p_RXSYNC_MULTILANE=0,
                 p_RXSYNC_OVRD=0,
@@ -373,8 +387,8 @@ class GTP(Module):
                 o_RXDATA=Cat(rx.rxdata[:8], rx.rxdata[10:18]),
 
                 # Polarity
-                i_TXPOLARITY=tx_polarity,
-                i_RXPOLARITY=rx_polarity,
+                i_TXPOLARITY=self.tx_polarity,
+                i_RXPOLARITY=self.rx_polarity,
 
                 # Pads
                 i_GTPRXP=rx_pads.p,
