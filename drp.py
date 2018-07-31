@@ -5,6 +5,7 @@ class drp(Module):
 		self.drpaddr = Signal(9)
 		self.drpdi = Signal(16)
 		self.drpdo = Signal(16)
+		self.drpvalue = Signal(16)
 		self.drpen = Signal()
 		self.drprdy = Signal()
 		self.drpwe = Signal()
@@ -13,6 +14,7 @@ class drp(Module):
 		self.ack = Signal()
 
 		drp_fsm = ResetInserter()(FSM(reset_state="IDLE"))
+		self.submodules += drp_fsm
 
 		drp_fsm.act("IDLE",
 			If(self.oprenable,
@@ -46,6 +48,7 @@ class drp(Module):
 		drp_fsm.act("READ_WAIT",
 			If(self.drprdy,
 				self.ack.eq(1),
+				NextValue(self.drpvalue, self.drpdo),
 				NextState("OPRENABLE_DEASSERT")
 				)
 			)
