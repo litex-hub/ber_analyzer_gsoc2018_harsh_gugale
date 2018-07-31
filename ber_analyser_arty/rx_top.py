@@ -17,6 +17,9 @@ class _RX(Module):
 		self.k = Signal(2)
 		self.seldata = Signal()
 		self.output = Signal(data_width)
+		self.checklink = Signal()
+		self.linkstatus = Signal()
+		self.linkstatuscount = Signal(3)
 
 		#seldata 0 - PRBS output
 		#seldata 1 - input to module
@@ -50,6 +53,16 @@ class _RX(Module):
 
 		self.sync += self.bit_error.eq(valadd)
 		self.sync += [
+			If(self.checklink == 1,
+				self.linkstatus.eq(0)
+			).Elif(self.bit_error == 0,
+				self.linkstatuscount.eq(self.linkstatuscount+1),
+				If(self.linkstatuscount == 0b101,
+					self.linkstatus.eq(1)
+				)
+			).Else(
+				self.linkstatuscount.eq(0)
+			),
 			If(self.enable_err_count == 0b01,
 			self.global_error.eq(self.global_error + self.bit_error),
 			self.total_bit_count.eq(self.total_bit_count + 1)
