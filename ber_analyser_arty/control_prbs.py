@@ -89,9 +89,21 @@ class PRBSControl:
 
 	def PLLlockStatus(self):
 		if(int(self.plllock.read()) == 1):
-			print("PLL Lock")
+			return "LOCKED"
 		else:
-			raise ValueError("PLL lock failed. Please Reset")
+			return "NOT LOCKED"
+
+	def checkMGTLink():
+		self.checklink.write(1)
+		self.checklink.write(0)
+
+		for i in range(10000):
+			time.sleep(0.001)
+			if(int(self.linkstatus.read()) == 1):
+				return "LINK"
+
+		return "NO LINK"
+
 
 	def phaseAlign(self):
 		self.seldata.write(1)
@@ -107,6 +119,84 @@ class PRBSControl:
 				return
 
 		raise TimeoutError
+
+	def drpWrite(self,addr,value):
+		self.drp_addr.write(addr)
+		self.drp_wren.write(1)
+		self.drp_di.write(value)
+		self.drp_oprenable.write(1)
+
+		if(int(self.rx_reset_ack.read()) == 0 | int(self.rx_phaseAlign_ack.read()) == 0):
+			raise ValueError("RX reset in progress. Cannot use DRP now")
+
+		for i in range(10000):
+			time.sleep(0.001)
+			if(int(self.drp_ack.read()) == 1):
+				self.drp_oprenable.write(0)
+				print("DRP write complete")
+				return
+
+		raise TimeoutError
+
+	def drpRead(self,addr):
+		self.drp_addr.write(addr)
+		self.drp_wren.write(0)
+		self.drp_oprenable.write(1)
+		drp_read_value = 0
+
+		if(int(self.rx_reset_ack.read()) == 0 | int(self.rx_phaseAlign_ack.read()) == 0):
+			raise ValueError("RX reset in progress. Cannot use DRP now")
+
+		for i in range(10000):
+			time.sleep(0.001)
+			if(int(self.drp_ack.read()) == 1):
+				self.drp_oprenable.write(0)
+				drp_read_value = int(self.drp_value.read())
+				return drp_read_value
+
+		raise TimeoutError
+
+	def txPolarity(self,invert=False):
+		if invert == True:
+			self.tx_polarity.write(1)
+			self.resetTx()
+			self.resetRx()
+			self.phaseAlign()
+			time.sleep(0.001)
+		else:
+			self.tx_polarity.write(0)
+			self.resetTx()
+			self.resetRx()
+			self.phaseAlign()
+			time.sleep(0.001)
+
+	def rxPolarity(self,invert=False):
+		if invert == True:
+			self.rx_polarity.write(1)
+			self.resetTx()
+			self.resetRx()
+			self.phaseAlign()
+			time.sleep(0.001)
+		else:
+			self.rx_polarity.write(0)
+			self.resetTx()
+			self.resetRx()
+			self.phaseAlign()
+			time.sleep(0.001)
+
+	def enableLoopback(self):
+		self.loopback.write(0b010)
+		self.resetTx()
+		self.resetRx()
+		self.phaseAlign()
+		time.sleep(0.001)
+
+	def disableLoopback(self):
+		self.loopback.write(0b000)
+		self.resetTx()
+		self.resetRx()
+		self.phaseAlign()
+		time.sleep(0.001)
 
 	def resetTx(self):
 		self.tx_reset_host.write(1)
@@ -131,6 +221,27 @@ class PRBSControl:
 				return
 
 		raise TimeoutError
+
+	def changeOutputSwing(self,value=0b1000):
+		if value > 15:
+			raise ValueError("Please enter a 4 bit number") 
+
+		self.diffctrl.write(value)
+		time.sleep(0.001)
+
+	def changetxPrecursor(self,value=0b00000):
+		if value > 31:
+			raise ValueError("Please enter a 5 bit number") 
+
+		self.txprecursor.write(value)
+		time.sleep(0.001)
+
+	def changetxPostcursor(self,value=0b00000):
+		if value > 31:
+			raise ValueError("Please enter a 4 bit number") 
+
+		self.txpostcursor.write(value)
+		time.sleep(0.001)
 
 	def calcBER(self, data_width = 20):
 
