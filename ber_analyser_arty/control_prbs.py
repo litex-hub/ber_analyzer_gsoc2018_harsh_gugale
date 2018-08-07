@@ -78,6 +78,8 @@ class PRBSControl:
 		self.en8b10b.write(0x00)
 		time.sleep(0.001)
 
+	def MGTLinerate(self):
+		return str(int(self.mgt_linerate.read())/2)
 
 	def BERinit(self):
 		self.c1 = 0
@@ -93,7 +95,7 @@ class PRBSControl:
 		else:
 			return "NOT LOCKED"
 
-	def checkMGTLink():
+	def checkMGTLink(self):
 		self.checklink.write(1)
 		self.checklink.write(0)
 
