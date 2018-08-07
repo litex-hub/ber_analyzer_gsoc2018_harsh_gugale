@@ -26,6 +26,10 @@ class Top_gtp(Module, AutoCSR):
         self.linkstatus = CSRStatus()
         self.checklink = CSRStorage()
 
+        linerate_resetval = ((linerate*2)/1e9)
+
+        self.mgt_linerate = CSRStorage(reset=linerate_resetval)
+
         self.tx_reset_host = CSRStorage()
         self.rx_reset_host = CSRStorage()
         self.tx_reset_ack = CSRStatus()
@@ -44,7 +48,7 @@ class Top_gtp(Module, AutoCSR):
 
         # # #
 
-        qpll = GTPQuadPLL(refclk, 100e6, 2e9)
+        qpll = GTPQuadPLL(refclk, refclk_freq, linerate)
         print(qpll)
 
         tx_pads = platform.request("gtp_tx")
@@ -97,8 +101,9 @@ class Top_gtp(Module, AutoCSR):
         pul1 = PulseSynchronizer("sys","tx")
         pul2 = PulseSynchronizer("sys","tx")
         pul3 = PulseSynchronizer("sys","tx")
+        pul4 = PulseSynchronizer("sys","tx")
 
-        self.submodules += pul1,pul2,pul3
+        self.submodules += pul1,pul2,pul3,pul4
 
         self.comb += [
         pul1.i.eq(self.tx_reset_host.storage),
@@ -106,7 +111,9 @@ class Top_gtp(Module, AutoCSR):
         pul2.i.eq(self.rx_reset_host.storage),
         pul2.o.eq(gtp.rx_reset_host),
         pul3.i.eq(self.rx_restart_phaseAlign.storage),
-        pul3.o.eq(gtp.rx_restart_phaseAlign)
+        pul3.o.eq(gtp.rx_restart_phaseAlign),
+        pul4.i.eq(self.checklink.storage),
+        pul4.o.eq(gtp.checklink)
         ]
 
         self.specials += [
@@ -131,7 +138,6 @@ class Top_gtp(Module, AutoCSR):
             MultiReg(gtp.rx_reset_ack,self.rx_reset_ack.status,"sys"),
             MultiReg(self.rx_polarity.storage,gtp.rx_polarity,"rx"),
             MultiReg(gtp.linkstatus,self.linkstatus.status,"sys"),
-            MultiReg(self.checklink.storage,gtp.checklink,"rx")
         ]
 
         sys_clk = Signal()
