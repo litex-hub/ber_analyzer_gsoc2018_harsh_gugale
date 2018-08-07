@@ -9,25 +9,26 @@ class Ui(Ui_MainWindow):
         super().__init__()
         self.wb = RemoteClient()
         self.wb.open()
-
+        self.sel=0
         self.prcon = PRBSControl(self.wb.regs,"top_gtp")
         self.setupUi(MainWindow)
         self.attachHandlers()
         self.prcon.BERinit()
-        self.pllStatusCheck()
-        self.checklinkstatus()
-        self.updateBER()                    
+        self.prcon.phaseAlign()
+        self.lineratelabel.setText(self.prcon.MGTLinerate()+" Gbps")
+        self.updateAnalyzer()                 
 
     def attachHandlers(self):
-        self.comboBox_4.activated.connect(self.handleActivatedTx)
-        self.comboBox_5.activated.connect(self.handleActivatedRx)
-        self.comboBox_6.activated.connect(self.handleActivatedErr)
+        self.txconfigcombo.activated.connect(self.handleActivatedTx)
+        self.rxconfigcombo.activated.connect(self.handleActivatedRx)
+        self.errorcombo.activated.connect(self.handleActivatedErr)
         self.txpolcheckbox.stateChanged.connect(self.txpolchange)
         self.rxpolcheckbox.stateChanged.connect(self.rxpolchange)
         self.loopbackcheck.stateChanged.connect(self.loopbackmode)
         self.txrst.clicked.connect(self.TxReset)
         self.rxrst.clicked.connect(self.RxReset)
-        self.submitbutton.clicked.connect(self.drpReadWrite)
+        self.drpreadbutton.clicked.connect(lambda:[setattr(self,'sel',0),self.drpReadWrite()])
+        self.drpwritebutton.clicked.connect(lambda:[setattr(self,'sel',1),self.drpReadWrite()])
         self.swingcombo.activated.connect(self.changeSwing)
         self.precombo.activated.connect(self.changePrecursor)
         self.postcombo.activated.connect(self.changePostcursor)
@@ -36,12 +37,12 @@ class Ui(Ui_MainWindow):
         drp_addr = int(self.drpaddr.text(),16)
         drp_value = int(self.drpval.text(),16)
 
-        if drpreadradio.isChecked == True:
+        if self.sel==1:
             self.prcon.drpWrite(drp_addr,drp_value)
 
-        if drpwriteradio.isChecked == True:
+        if self.sel==0:
             drp_value = self.prcon.drpRead(drp_addr)
-            self.drpval.setText(hex(drp_value))
+            self.drpval.setText(hex(123))
 
     def loopbackmode(self,state):
         if state == QtCore.Qt.Checked:
@@ -105,23 +106,18 @@ class Ui(Ui_MainWindow):
         if index == 7:
             self.prcon.changetxPostcursor(0b11110)
 
-    def pllStatusCheck(self):
-        self.plllabel.setText(prcon.PLLlockStatus())
-        QtCore.QTimer.singleShot(5000,self.updateBER)
-
-    def updateBER(self):
-        self.label_4.setText(str(round(self.prcon.calcBER(),3)))
-        QtCore.QTimer.singleShot(1000,self.updateBER)
-
-    def checklinkstatus(self):
-        self.linklabel.setText(prcon.checkMGTLink())
-        QtCore.QTimer.singleShot(5000,self.checklinkstatus)
+    def updateAnalyzer(self):
+        self.plllabel.setText(self.prcon.PLLlockStatus())
+        self.berlabel.setText(str(round(self.prcon.calcBER(),3)))
+        self.linklabel.setText(self.prcon.checkMGTLink())
+        QtCore.QTimer.singleShot(1000,self.updateAnalyzer)
 
     def TxReset(self):
         self.prcon.resetTx()
 
     def RxReset(self):
         self.prcon.resetRx()
+        self.prcon.phaseAlign()
 
     def handleActivatedTx(self,index):
         if index == 0:
