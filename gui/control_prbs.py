@@ -118,6 +118,7 @@ class PRBSControl:
 			time.sleep(0.001)
 			if(int(self.rx_phaseAlign_ack.read()) == 1):
 				print("RX Ready. Alignment Done")
+				self.seldata.write(0)
 				return
 
 		raise TimeoutError
