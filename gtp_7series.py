@@ -7,8 +7,8 @@ from migen.genlib.cdc import *
 from gtp_7series_init import GTPTXInit, GTPRXInit
 from clock_aligner import BruteforceClockAligner
 
-from ber_analyser_arty.tx_top import _TX
-from ber_analyser_arty.rx_top import _RX
+from prbs_files.tx_top import _TX
+from prbs_files.rx_top import _RX
 
 
 class GTPQuadPLL(Module):
