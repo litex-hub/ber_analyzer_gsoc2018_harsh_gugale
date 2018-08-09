@@ -28,7 +28,9 @@ class Top_gtp(Module, AutoCSR):
 
         linerate_resetval = ((linerate*2)/1e9)
 
-        self.mgt_linerate = CSRStorage(reset=linerate_resetval)
+        print("yo "+str(int(linerate_resetval)))
+
+        self.mgt_linerate = CSRStorage(4,reset=int(linerate_resetval))
 
         self.tx_reset_host = CSRStorage()
         self.rx_reset_host = CSRStorage()
