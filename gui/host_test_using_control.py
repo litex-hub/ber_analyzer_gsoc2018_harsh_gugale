@@ -1,3 +1,5 @@
+import sys
+sys.path.insert("./")
 from litex.soc.tools.remote import RemoteClient
 from control_prbs import *
 
