@@ -13,8 +13,8 @@ class Ui(Ui_MainWindow):
         self.prcon = PRBSControl(self.wb.regs,"top_gtp")
         self.setupUi(MainWindow)
         self.attachHandlers()
-        self.prcon.BERinit()
         self.prcon.phaseAlign()
+        self.prcon.BERinit()
         self.lineratelabel.setText(self.prcon.MGTLinerate()+" Gbps")
         self.updateAnalyzer()                 
 
@@ -35,14 +35,14 @@ class Ui(Ui_MainWindow):
 
     def drpReadWrite(self):
         drp_addr = int(self.drpaddr.text(),16)
-        drp_value = int(self.drpval.text(),16)
 
         if self.sel==1:
+            drp_value = int(self.drpval.text(),16)
             self.prcon.drpWrite(drp_addr,drp_value)
 
         if self.sel==0:
-            drp_value = self.prcon.drpRead(drp_addr)
-            self.drpval.setText(hex(123))
+            drp_value = int(self.prcon.drpRead(drp_addr))
+            self.drpval.setText(hex(drp_value)[2:])
 
     def loopbackmode(self,state):
         if state == QtCore.Qt.Checked:
