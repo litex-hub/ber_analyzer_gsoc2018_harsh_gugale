@@ -149,13 +149,13 @@ def pllSettings(linerate,fin):
 
 
 def main():
-	linerate = 2e9
+	linerate = 3e9
 	fin = 25e6
 	args = sys.argv[1:]
 	no_compile = "no_compile" in args
 	pll = pllSettings(linerate,fin)
 	soc = TE014SoC(pll)
-	builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
+	builder = Builder(soc, output_dir="build", csr_csv="./csr.csv")
 	vns = builder.build()
 
 if __name__ == "__main__":
