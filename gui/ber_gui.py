@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from litex.soc.tools.remote import RemoteClient
 import sys
+sys.path.insert(1,"./")
+from litex.soc.tools.remote import RemoteClient
 from designer import Ui_MainWindow
 from control_prbs import *
 
