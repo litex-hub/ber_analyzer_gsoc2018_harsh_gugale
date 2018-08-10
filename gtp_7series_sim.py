@@ -67,7 +67,7 @@ class GTPSim(Module):
             ),
         ]
 
-        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9)
+        qpll = GTPQuadPLL(refclk125, 125e6, 2.5e9)
         print(qpll)
         self.submodules += qpll
 
@@ -75,7 +75,7 @@ class GTPSim(Module):
         tx_pads = platform.request("gtp_tx")
         rx_pads = platform.request("gtp_rx")
         gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+            clock_aligner=False, internal_loopback=False)
         self.submodules += gtp
 
         # counter = Signal(8)
